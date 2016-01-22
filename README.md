@@ -1,2 +1,2 @@
 # Sleep Analysis
-Code for spectral analysis of single-electrode electrophysiological data during sleep
+Code for spectral analysis of calcium-imaging recordings and also single-electrode electrophysiological data during sleep
