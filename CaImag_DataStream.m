@@ -1,5 +1,5 @@
-function [Av_Size,Av_Len,Av_IEI,Av_Data,Spike_Data,Trace_Data] = CaImag_DataStream(foldernums,FitType,threshold,Fs,binSize)
-%CaImag_DataStream.m
+function [Av_Size,Av_Len,Av_IEI,Av_Data,Spike_Data,Trace_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,binSize)
+%Ca_im_DataStream.m
 %Take stored data in different folders and perform Avalanche analysis
 %    Folders are named 'mat*' with '*' denoting different numbers
 % Created: 2015/10/21 at 24 Cummington, Boston
