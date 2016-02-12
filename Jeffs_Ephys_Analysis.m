@@ -2,7 +2,7 @@ function [] = Jeffs_Ephys_Analysis(dates)
 %Jeff_Ephys_Analysis.m
 %   Once you have used the Jeff_Ephys_Conversion.m function to get the data
 %    into a usable format, you use this function.  It will perform some
-%    fairly simple analyses of the data, including creation spectrograms of
+%    fairly simple analyses of the data, including creation of spectrograms of
 %    the time-series over the night.  
 % INPUT: dates - This is the data for the folder output from the conversion
 %         code.
