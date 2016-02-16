@@ -11,6 +11,7 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 %         data from multiple conversions.  The converted data is
 %         automatically save to a folder named 'Converted_Ephys_YYYY-MM-DD'
 %         so the code will grab those folders with the dates provided.
+%         dates = {'2016-02-16','2016-02-17'};
 %        earlyCutOff - amount of time (in hours) to exclude from the 
 %         beginning of the night, if the bird was not asleep, for example
 %        lateCutOff - amount of time (in hours) to exclude at the end of the
@@ -71,7 +72,7 @@ for ii=1:length(dates)
             count = 1;
             for tt=times
                 [pxx,f] = pmtm(Data(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
-                finalSpectrogram(kk,count,:) = finalSpectrogram(kk,count,:)+10*log10(pxx');
+                finalSpectrogram(kk,count,:) = (squeeze(finalSpectrogram(kk,count,:)))'+10*log10(pxx');
                 count = count+1;
             end
             x = linspace(0,realTimes(end)./3600,length(realTimes));
@@ -89,7 +90,7 @@ for ii=1:length(dates)
         % MULTIVARIATE GAUSSIAN MAXIMUM LIKELIHOOD ESTIMATION - FREQUENCY
 %         timeSteps = size(finalSpectrogram,1);
 %         numFreqs = size(finalSpectrogram,2);
-        spectro = finalSpectrogram(1,:,:);
+        spectro = squeeze(finalSpectrogram(1,:,:));
         x_hat = (mean(spectro,1))';
         sigma_hat = cov(spectro);
         figure();
@@ -116,3 +117,6 @@ for ii=1:length(dates)
 end
 cd(originalDirectory)
 end
+%         figure();
+%         N = 500;
+%         spectrogram(Data(1,:),hann(N),N/5,N,Fs)
