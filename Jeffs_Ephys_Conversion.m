@@ -7,17 +7,18 @@ function [] = Jeffs_Ephys_Conversion(cellArrayBirdNames,Fs)
 % INPUT: cellArrayBirdNames - if you download the data as Jeff has it
 %     saved, e.g. /lpi79/2011-03-04/sleep/sleepdata1_lpi79_110304_220008.mat
 %     then, you can send in input as {'lpi79','lpi16'} or something
-%     similar, whatever the bird names are, as long as they are all stored
+%     similar, whatever the bird names are, as long as all files are stored
 %     in the same format
-%        Fs - sampling frequency to which you want to downsample
+%        Fs - sampling frequency TO WHICH you want to downsample
 % OUTPUT: no direct output, but all of the matrices will be stored in a
-%  single file in the original directory as birdname_date.mat
+%  subdirectory of the original directory as 
+%   Converted_Ephys_currentDate/combinedData_birdname_recordingDate.mat
 
 % Then, you can send those files into the analysis function.
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2015/01/21
+% Updated: 2016/02/15
 % By: Byron Price
 
 
@@ -45,9 +46,10 @@ for bird = 1:length(cellArrayBirdNames)
     
     clear FsOld adc audio parameters example ;
     
-    % LOOP THROUGH EACH OF THE FOLDERS FOR A GIVEN BIRD
-    for i=1:length(subFolders)
-        cd(strcat(currentBirdDirectory,'/',subFolders(i).name,'/sleep'))
+    % LOOP THROUGH EACH OF THE FOLDERS FOR A GIVEN BIRD, i.e. DIFFERENT
+    %  DATES
+    for ii=1:length(subFolders)
+        cd(strcat(currentBirdDirectory,'/',subFolders(ii).name,'/sleep'))
         sleepFiles = dir('*.mat'); 
         numFiles = length(sleepFiles);
         fileNames = cell(1,numFiles);
@@ -58,9 +60,9 @@ for bird = 1:length(cellArrayBirdNames)
         %   matrix one-by-one
         
         totalLength = 0;
-        for j=1:numFiles
-            fileNames{j} = sleepFiles(j).name; 
-            load(sleepFiles(j).name,'adc')
+        for jj=1:numFiles
+            fileNames{jj} = sleepFiles(jj).name; 
+            load(sleepFiles(jj).name,'adc')
             totalLength = totalLength+size(adc.data,1);
         end
         
@@ -69,25 +71,28 @@ for bird = 1:length(cellArrayBirdNames)
         
         if ContainSubString(adc.names{1},'Gnd') == 1
             % SUBTRACT ELECTRODES FROM EACH OTHER, RECTIFY,
-            %  SMOOTH, DOWNSAMPLE
+            %  SMOOTH, LOWPASS FILTER, DOWNSAMPLE
             squareData = zeros(numCombos,timeSteps,2);
             leftovers = zeros(numElectrodes,numFiles+1);
             leftovers(:,1) = downSampleRate*ones(numElectrodes,1);
             
             count = 1;
-            for k=1:numElectrodes
-                for l=k+1:numElectrodes
+            for kk=1:numElectrodes
+                for ll=kk+1:numElectrodes
                     index = 1;
-                    for j=1:numFiles
-                        load(sleepFiles(j).name,'adc','parameters')
-                        myData = smooth((adc.data(:,k)-adc.data(:,l)).^2,downSampleRate);
-                        % odd indexing here necessary due to RAM limitations and an effort to maintain
-                        %  the downsample rate consistent across different ~90-second recordings
-                        currentLength = length(myData((1+downSampleRate-leftovers(k,j)):end));
+                    for jj=1:numFiles
+                        load(sleepFiles(jj).name,'adc','parameters')
+                        myData = smooth((adc.data(:,kk)-adc.data(:,ll)).^2,downSampleRate);
+                        n = 35;
+                        lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
+                        blo = fir1(n,lowpass,'low',hamming(n+1));
+                        myData = filter(blo,1,myData);
+                        
+                        currentLength = length(myData((1+downSampleRate-leftovers(kk,jj)):end));
                         newLength = ceil(currentLength/downSampleRate);
-                        leftovers(k,j+1) = mod(currentLength-1,downSampleRate);
-                        squareData(count,index:index+newLength-1,1) = adc.t((1+downSampleRate-leftovers(k,j)):downSampleRate:end);
-                        squareData(count,index:index+newLength-1,2) = myData((1+downSampleRate-leftovers(k,j)):downSampleRate:end);
+                        leftovers(kk,jj+1) = mod(currentLength-1,downSampleRate);
+                        squareData(count,index:index+newLength-1,1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
+                        squareData(count,index:index+newLength-1,2) = myData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
                         index = index+newLength;
                     end
                     count = count+1;
@@ -95,24 +100,29 @@ for bird = 1:length(cellArrayBirdNames)
             end  
         else
             squareData = zeros(numElectrodes,timeSteps,2);
-            for k=1:numElectrodes
+            for kk=1:numElectrodes
                 Data = zeros(totalLength,2);
                 index = 1;
-                for j=1:numFiles
-                    load(sleepFiles(j).name,'adc','parameters')
+                for jj=1:numFiles
+                    load(sleepFiles(jj).name,'adc','parameters')
                     currentLength = size(adc.data,1);
                     Data(index:index+currentLength-1,1) = adc.t;
-                    Data(index:index+currentLength-1,2) = adc.data(:,k);
+                    Data(index:index+currentLength-1,2) = adc.data(:,kk);
                     index = index+currentLength+1;
                 end
                 
-                %  RECTIFY
-                %  SMOOTH, DOWNSAMPLE
-                squareData(k,:,1) = squeeze(Data(1:downSampleRate:end,1));
+                %  RECTIFY, SMOOTH, LOWPASS FILTER
+                %  DOWNSAMPLE (ELECTRODES ALREADY SUBTRACTED)
+                squareData(kk,:,1) = squeeze(Data(1:downSampleRate:end,1));
                 temp = squeeze(Data(:,2));
                 temp = smooth(temp.^2,downSampleRate);
-                squareData(k,:,2) = temp(1:downSampleRate:end);
-                squareData(k,:,2) = squareData(k,:,2) - mean(squareData(k,:,2));
+                n = 35;
+                lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
+                blo = fir1(n,lowpass,'low',hamming(n+1));
+                temp = filter(blo,1,temp);
+                
+                squareData(kk,:,2) = temp(1:downSampleRate:end);
+                squareData(kk,:,2) = squareData(kk,:,2) - mean(squareData(kk,:,2));
                 clear Data;
             end
         end
@@ -120,7 +130,7 @@ for bird = 1:length(cellArrayBirdNames)
      startTime = parameters.rec_start_datenum;
      
      
-     filename = strcat('combinedData_',birdname,'_',subFolders(i).name,'.mat');
+     filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
      save(filename,'squareData','Fs','fileNames','startTime')
         
@@ -193,3 +203,4 @@ function [ doescontain ] = CheckLetter(MainLetter, SubLetter)
         doescontain = false;
     end
 end
+
