@@ -64,6 +64,7 @@ for ii=1:length(dates)
         
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
+        finalTime = realTimes(end);
         finalSpectrogram = zeros(numCombos,length(times),N/2+1);
         figure();
         numRows = ceil(numCombos/2);
@@ -75,7 +76,7 @@ for ii=1:length(dates)
                 finalSpectrogram(kk,count,:) = (squeeze(finalSpectrogram(kk,count,:)))'+10*log10(pxx');
                 count = count+1;
             end
-            x = linspace(0,realTimes(end)./3600,length(realTimes));
+            x = linspace(0,finalTime/3600,length(realTimes));
             
             subplot(numRows,2,kk)
             spectro = squeeze(finalSpectrogram(kk,:,:));
@@ -84,6 +85,7 @@ for ii=1:length(dates)
                 xlabel('Time (hours)');ylabel('Frequency (Hz)') 
             h = gca;
             h.YDir = 'normal';
+            clear x;
         end
         
         clear spectro;
@@ -112,7 +114,7 @@ for ii=1:length(dates)
         imagesc(x,x,sigma_hat);title('Time Covariance Matrix \Sigma_t');
         xlabel('Time (hours)');ylabel('Time (hours)');colorbar
         clearvars -except originalDirectory numFiles jj ii ...
-            earlyCutOff lateCutOff dates;
+            earlyCutOff lateCutOff dates T R;
     end
 end
 cd(originalDirectory)
