@@ -52,15 +52,14 @@ for ii=1:length(dates)
         T = 60; % data assumed stationary for T seconds, this should be an EVEN #
         N = T*Fs;
         R = 2; % desired spectral resolution (Hz)
-        alpha = (N*R)/(2*Fs); % must be greater than 1.25
+        alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
             display(sprintf('alpha is equal to %2.4f',alpha))
             display('It needs to be greater than 1.25')
             display('Increase spectral resolution (R) or change stationarity time (T).')
             return;
         end
-        tau = T/2;
-        K = (tau/T)*N;
+        K = N/2;
         
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
