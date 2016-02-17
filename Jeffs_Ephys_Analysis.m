@@ -85,7 +85,6 @@ for ii=1:length(dates)
                 xlabel('Time (hours)');ylabel('Frequency (Hz)') 
             h = gca;
             h.YDir = 'normal';
-            clear x;
         end
         
         clear spectro;
