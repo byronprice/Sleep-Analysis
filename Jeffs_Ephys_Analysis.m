@@ -61,6 +61,7 @@ for ii=1:length(dates)
             return;
         end
         K = N/2;
+
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
         finalTime = realTimes(end);
