@@ -24,24 +24,25 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 % By: Byron Price
 
 if nargin < 2
-    earlyCutOff = 1; % 1 hour chopped from the beginning and end of the night
-    lateCutOff = 1;
+    earlyCutOff = 1*3600; % 1 hour chopped from the beginning and end of the night
+    lateCutOff = 1*3600;
 end
 
 originalDirectory = pwd;
 for ii=1:length(dates)
     cd(strcat(originalDirectory,'/Converted_Ephys_',dates{ii}))
-    fileNames = dir('*.mat');
-    numFiles = length(fileNames);
+    matrixNames = dir('*.mat');
+    numFiles = length(matrixNames);
+    load(matrixNames(1).name,'Fs')
+    earlyCutOff = earlyCutOff*Fs;
+    lateCutOff = lateCutOff*Fs;
+    clear Fs;
     for jj=1:numFiles
-        fileNames = dir('*.mat');
-        load(fileNames(jj).name)
+        load(matrixNames(jj).name)
         numCombos = size(squareData,1);
-        earlyCutOff = (earlyCutOff*60*60)*Fs;
-        lateCutOff = (lateCutOff*60*60)*Fs;
         Data = squeeze(squareData(:,earlyCutOff:end-lateCutOff,2));
-        
         timeSteps = size(Data,2);
+        
         if mod(timeSteps,2) == 1
             Data = Data(:,1:end-1);
             timeSteps = timeSteps-1;
@@ -49,19 +50,17 @@ for ii=1:length(dates)
         
         % IMPORTANT STEP FOR CREATION OF SPECTROGRAM
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
-        T = 60; % data assumed stationary for T seconds, this should be an EVEN #
+        T = 10; % data assumed stationary for T seconds, this should be an EVEN #
         N = T*Fs;
         R = 2; % desired spectral resolution (Hz)
-        alpha = (N*R)/(2*Fs); % must be greater than 1.25
+        alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
             display(sprintf('alpha is equal to %2.4f',alpha))
             display('It needs to be greater than 1.25')
             display('Increase spectral resolution (R) or change stationarity time (T).')
             return;
         end
-        tau = T/2;
-        K = (tau/T)*N;
-        
+        K = N/2;
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
         finalTime = realTimes(end);
@@ -85,7 +84,6 @@ for ii=1:length(dates)
                 xlabel('Time (hours)');ylabel('Frequency (Hz)') 
             h = gca;
             h.YDir = 'normal';
-            clear x;
         end
         
         clear spectro;
@@ -113,12 +111,12 @@ for ii=1:length(dates)
         subplot(1,2,2)
         imagesc(x,x,sigma_hat);title('Time Covariance Matrix \Sigma_t');
         xlabel('Time (hours)');ylabel('Time (hours)');colorbar
-        clearvars -except originalDirectory numFiles jj ii ...
-            earlyCutOff lateCutOff dates T R;
+        clear spectro x_hat sigma_hat Data squareData;
     end
+    clear fileNames numFiles numCombos times finalTime realTimes;
+    earlyCutOff = earlyCutOff/Fs;
+    lateCutOff = lateCutOff/Fs;
 end
 cd(originalDirectory)
 end
-%         figure();
-%         N = 500;
-%         spectrogram(Data(1,:),hann(N),N/5,N,Fs)
+
