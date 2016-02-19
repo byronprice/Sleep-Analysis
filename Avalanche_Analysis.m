@@ -1,4 +1,4 @@
-function [Av_Size,mean_Size,Av_IEI,mean_IEI,Time] = Avalanche_Analysis(Av_Data,window,maxThreshold)
+function [Av_Size,mean_Size,Av_IEI,mean_IEI,Time] = Avalanche_Analysis(Av_Data,window,maxThreshold,Fs)
 %Avalanche_Analysis.m
 %   Take "Av_Data" matrix from Ca_im_DataStream output and count 
 %    avalanches using different definitions and thresholds.
@@ -72,7 +72,10 @@ function [Av_Size,mean_Size,Av_IEI,mean_IEI,Time] = Avalanche_Analysis(Av_Data,w
 %   basically the same but with 1 IEI of 2 bins (0.0666 seconds) and one of
 %   3 bins (0.0999 seconds).  
 %
-Fs = 30;
+if nargin < 4
+  Fs = 30;
+end
+
 numVideos = size(Av_Data,1);
 T = size(Av_Data,2);
 Time = 0:1/Fs:T/Fs;
