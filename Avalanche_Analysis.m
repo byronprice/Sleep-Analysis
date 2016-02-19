@@ -114,7 +114,7 @@ for threshold = 1:maxThreshold
                             k = k+1;
                             count = count+1;
                         end
-                        if count < T-2
+                        if count < T-1
                             Av_IEI(threshold,count+1) = Av_IEI(threshold,count+1)+1;
                             IEIs = [IEIs,Time(count+1)];
                         end
