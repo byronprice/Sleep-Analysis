@@ -1,5 +1,5 @@
-function [Av_Size,Av_IEI,Time] = Avalanche_Analysis(Av_Data,window,maxThreshold,Fs)
-%Avalanche_Analysis.m
+function [Av_Size,Av_IEI,Time] = Burst_Analysis(Av_Data,window,maxThreshold,Fs)
+%Burst_Analysis.m
 %   Take "Av_Data" matrix from Ca_im_DataStream output and count 
 %    avalanches using different definitions and thresholds.
 %
