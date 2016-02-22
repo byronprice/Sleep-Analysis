@@ -1,4 +1,4 @@
-function [Av_Size,Av_Len,Av_IEI,Av_Data,Spike_Data,Trace_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,binSize)
+function [Av_Data,Spike_Data,Trace_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,binSize)
 %Ca_im_DataStream.m
 %Take stored data in different folders and perform Avalanche analysis
 %    Folders are named 'mat*' with '*' denoting different numbers
@@ -119,54 +119,54 @@ for a=1:length(foldernums)
         Av_Data(j,:) = sumSpikes;
         % SUM SPIKES ACROSS BINS TO COUNT AVALANCHE SIZE, LENGTH, AND ALSO
         % INTER-EVENT INTERVAL
-        scount = 0;
-        lcount = 0;
-        icount = 0;
+        %scount = 0;
+        %lcount = 0;
+        %icount = 0;
     
-        for t =2:length(sumSpikes)
-            [~,~,Av_Size(:,1),Av_Len(:,1),Av_IEI(:,1),scount,lcount,icount] = Av_Counter(sumSpikes,t,Av_Size(:,1),Av_Len(:,1),Av_IEI(:,1),scount,lcount,icount);
-        end
+        %for t =2:length(sumSpikes)
+        %    [~,~,Av_Size(:,1),Av_Len(:,1),Av_IEI(:,1),scount,lcount,icount] = Av_Counter(sumSpikes,t,Av_Size(:,1),Av_Len(:,1),Av_IEI(:,1),scount,lcount,icount);
+        %end
     end
 end
 
 % PLOTS
-figure
-subplot(3,2,1)
-bar(Av_Size(2:end,1)) % starting at 2 skips zero-sized bin, for visual
-title('Distribution of Avalanche Size')
-xlabel('Avalanche Size (# ROIs above threshold)')
-ylabel('Frequency')
+%figure
+%subplot(3,2,1)
+%bar(Av_Size(2:end,1)) % starting at 2 skips zero-sized bin, for visual
+%title('Distribution of Avalanche Size')
+%xlabel('Avalanche Size (# ROIs above threshold)')
+%ylabel('Frequency')
 
 
-subplot(3,2,2)
-scatter(log10(Av_Size(2:600,2)),log10(Av_Size(2:600,1)))
-title('Log-Log Distribution of Avalanche Size')
-xlabel('Log(Avalanche Size)')
-ylabel('Log(Frequency)')
+%subplot(3,2,2)
+%scatter(log10(Av_Size(2:600,2)),log10(Av_Size(2:600,1)))
+%title('Log-Log Distribution of Avalanche Size')
+%xlabel('Log(Avalanche Size)')
+%ylabel('Log(Frequency)')
 
-subplot(3,2,3)
-bar(Av_IEI(1:300,2),Av_IEI(1:300,1))
-title('Distribution of Inter-Event Interval')
-xlabel('Inter-Event Interval (seconds between avalanches)')
-ylabel('Frequency')
+%subplot(3,2,3)
+%bar(Av_IEI(1:300,2),Av_IEI(1:300,1))
+%title('Distribution of Inter-Event Interval')
+%xlabel('Inter-Event Interval (seconds between avalanches)')
+%ylabel('Frequency')
 
-subplot(3,2,4)
-scatter(log10(Av_IEI(:,2)),log10(Av_IEI(:,1)))
-title('Log-Log Distribution of Inter-Event Interval')
-xlabel('Log[Inter-Event Interval (seconds)]')
-ylabel('Log(Frequency)')
+%subplot(3,2,4)
+%scatter(log10(Av_IEI(:,2)),log10(Av_IEI(:,1)))
+%title('Log-Log Distribution of Inter-Event Interval')
+%xlabel('Log[Inter-Event Interval (seconds)]')
+%ylabel('Log(Frequency)')
 
-subplot(3,2,5)
-bar(Av_Len(1:150,2),Av_Len(1:150,1))
-title('Distribution of Avalanche Length')
-xlabel('Avalanche Length (seconds of continuous spikes)')
-ylabel('Frequency')
+%subplot(3,2,5)
+%bar(Av_Len(1:150,2),Av_Len(1:150,1))
+%title('Distribution of Avalanche Length')
+%xlabel('Avalanche Length (seconds of continuous spikes)')
+%ylabel('Frequency')
 
-subplot(3,2,6)
-scatter(log10(Av_Len(:,2)),log10(Av_Len(:,1)))
-title('Log-Log Distribution of Avalanche Length')
-xlabel('Log[Avalanche Length (seconds)]')
-ylabel('Log(Frequency)')
+%subplot(3,2,6)
+%scatter(log10(Av_Len(:,2)),log10(Av_Len(:,1)))
+%title('Log-Log Distribution of Avalanche Length')
+%xlabel('Log[Avalanche Length (seconds)]')
+%ylabel('Log(Frequency)')
 cd('/Users/gardnerlab/Documents/MATLAB/')
 
 end
