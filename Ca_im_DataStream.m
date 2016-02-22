@@ -54,21 +54,21 @@ end
                    % unknown number of recordings (a set), each ~30 seconds long,
                    % which is 900 frames at 30 Hz, though some are sized
                    % differently, 1800 frames so 60 seconds
-maxROIs = 1000;             
-Av_Size = zeros(maxROIs+1,2); % avalanche size (number of active ROIs in a 
+%maxROIs = 1000;             
+%Av_Size = zeros(maxROIs+1,2); % avalanche size (number of active ROIs in a 
                 % single time bin, unless contiguous bins are active, then
                 % its the number of active ROIs summed over continuously
                 % active bins)
-Av_Size(:,2) = 0:maxROIs;
+%Av_Size(:,2) = 0:maxROIs;
 
-maxFrames = 1800; % maximum number of frames
-times = binSize:binSize:maxFrames/Fs;
-Av_IEI = zeros(length(times),2); % inter-event interval (seconds), or time 
+%maxFrames = 1800; % maximum number of frames
+%times = binSize:binSize:maxFrames/Fs;
+%Av_IEI = zeros(length(times),2); % inter-event interval (seconds), or time 
                 % between avalanches
-Av_IEI(:,2) = times;
+%Av_IEI(:,2) = times;
 
-Av_Len = zeros(length(times),2); % length (seconds) of avalanches
-Av_Len(:,2) = times;
+%Av_Len = zeros(length(times),2); % length (seconds) of avalanches
+%Av_Len(:,2) = times;
 
 
 for a=1:length(foldernums)
