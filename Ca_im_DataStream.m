@@ -1,10 +1,10 @@
-function [Av_Data,Spike_Data,Trace_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,binSize)
+function [Processed_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,binSize)
 %Ca_im_DataStream.m
 %Take stored data in different folders and perform Avalanche analysis
 %    Folders are named 'mat*' with '*' denoting different numbers
 % Created: 2015/10/21 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2015/11/18
+% Updated: 2015/02/22
 % By: Byron Price
 %
 % INPUT:   foldernums - cell array with strings for which folders to upload
@@ -20,12 +20,14 @@ function [Av_Data,Spike_Data,Trace_Data] = Ca_im_DataStream(foldernums,FitType,t
 %          binSize - width of bins (secs), spikes are counted as having occurred
 %                       within bins of a certain size, default = 1/Fs
 % 
-% OUTPUT:  Av_Size - binned data for avalanche size, i.e. frequency
-%                       of the occurence of avalanches with size x
-%          Av_Len - frequency of occurence of avalanches with
-%                       length t
-%          IEI - frequency of occurence of length-t lulls
-%                       in avalanche activity
+% OUTPUT: Processed_Data - structure array with the following fields
+%            Trace_Data - the original calcium traces, detrended according to
+%             FitType
+%            Spike_Data - inferred spikes from Trace_Data based on a simple
+%             threshold crossing, if the activity in a given bin has a
+%             z-score greater than 'threshold' and it is a local maximum, it
+%             will be counted as a 1, otherwise a 0
+%            Av_Data - summed Spike_Data across all ROIs
 
 % ALLOW FOR VARIABLE INPUT AND SET DEFAULTS
 % Check number of inputs.
@@ -54,29 +56,40 @@ end
                    % unknown number of recordings (a set), each ~30 seconds long,
                    % which is 900 frames at 30 Hz, though some are sized
                    % differently, 1800 frames so 60 seconds
-%maxROIs = 1000;             
-%Av_Size = zeros(maxROIs+1,2); % avalanche size (number of active ROIs in a 
-                % single time bin, unless contiguous bins are active, then
-                % its the number of active ROIs summed over continuously
-                % active bins)
-%Av_Size(:,2) = 0:maxROIs;
 
-%maxFrames = 1800; % maximum number of frames
-%times = binSize:binSize:maxFrames/Fs;
-%Av_IEI = zeros(length(times),2); % inter-event interval (seconds), or time 
-                % between avalanches
-%Av_IEI(:,2) = times;
+originalDirectory = pwd;
 
-%Av_Len = zeros(length(times),2); % length (seconds) of avalanches
-%Av_Len(:,2) = times;
+cellForStruct = cell(1,length(foldernums));
+Processed_Data = struct('Av_Data',{cellForStruct},'Spike_Data',{cellForStruct},...
+    'Trace_Data',{cellForStruct});
+for aa=1:length(foldernums)
+    % LOOP TO GET SIZES OF THE DIFFERENT MATRICES THAT WILL BE OUTPUT
+    folder = strcat('/mat',char(foldernums(aa)));
+    mainfolder = strcat(originalDirectory,folder);
+    directory = strcat(mainfolder,'/roi');
+    cd(directory)
+    
+    load('ave_roi.mat')
+    
+    alldata = roi_ave.raw;
+    numVideos = size(alldata,2); 
+    shift = 1*Fs; % how many frames to cut off from beginning and end
+                    % the number is in units of seconds
+    numFrames = length(alldata{1,1}(1,shift:end-shift));
+    numROIs = size(alldata{1},1);
+    Processed_Data.Av_Data{aa} = zeros(numVideos,numFrames);
+    Processed_Data.Spike_Data{aa} = zeros(numVideos,numROIs,numFrames);
+    Processed_Data.Trace_Data{aa} = zeros(numVideos,numROIs,numFrames);
+    
+    cd(originalDirectory)
+end
 
-
-for a=1:length(foldernums)
+for aa=1:length(foldernums)
     % ACCESS INFO IN DIFFERENT FOLDERS, ALL OF WHICH HAVE BEEN NAMED
     % FOR SIMPLICITY, 'mat6' or 'mat7' or 'mat11'
-    disp(strcat('Currently Running Folder #',char(foldernums(a))))
-    folder = strcat('mat',char(foldernums(a)));
-    mainfolder = strcat('/Users/gardnerlab/Documents/MATLAB/',folder);
+    disp(strcat('Currently Running Folder #',char(foldernums(aa))))
+    folder = strcat('/mat',char(foldernums(aa)));
+    mainfolder = strcat(originalDirectory,folder);
     directory = strcat(mainfolder,'/roi');
     cd(directory)
     
@@ -89,34 +102,27 @@ for a=1:length(foldernums)
                     % the number is in units of seconds
     numFrames = length(alldata{1,1}(1,shift:end-shift));
     
-    % DETREND EACH ROI INDIVIDUALLY FOR EACH VIDEO
-    Trace_Data = zeros(numVideos,numROIs,numFrames);
-    for i = 1:numVideos
-        for j = 1:numROIs
-            [alldata{1,i}(j,shift:end-shift)] = Preprocessing(alldata{1,i}(j,shift:end-shift),FitType);
-        end
-        Trace_Data(i,:,:) = alldata{1,i}(:,shift:end-shift);
-    end
-    
-    
     % COUNT SPIKES AND SUM ACROSS ROIs IN A SINGLE RECORDING
-    Spike_Data = zeros(numVideos,numROIs,numFrames);
-    Av_Data = zeros(numVideos,numFrames);
-    for j=1:numVideos
+    for jj=1:numVideos
+        % DETREND EACH ROI INDIVIDUALLY FOR EACH VIDEO
+        for kk = 1:numROIs
+            [alldata{1,jj}(kk,shift:end-shift)] = Preprocessing(alldata{1,jj}(kk,shift:end-shift),FitType);
+        end
+        Processed_Data.Trace_Data{aa}(jj,:,:) = alldata{1,jj}(:,shift:end-shift);
         binarySpikes = []; % will contain event data for all ROIs in 
                             % a single recording
-        for k=1:numROIs
+        for kk=1:numROIs
             % detect calcium spikes
-            [~,Spikes] = Spike_Detector(Trace_Data(j,k,:),Fs,binSize,threshold);
+            [~,Spikes] = Spike_Detector(Processed_Data.Trace_Data{aa}(jj,kk,:),Fs,binSize,threshold);
             binarySpikes = [binarySpikes,Spikes];
         end
-        Spike_Data(j,:,:) = binarySpikes';
+        Processed_Data.Spike_Data{aa}(jj,:,:) = binarySpikes';
         sumSpikes = sum(binarySpikes,2); % add up spikes from each ROI
                                             % into a single vector, this
                                             % will be used to deterimine
-                                            % avalanche size
-                                                         
-        Av_Data(j,:) = sumSpikes;
+                                            % avalanche size                                               
+        Processed_Data.Av_Data{aa}(jj,:) = sumSpikes;
+
         % SUM SPIKES ACROSS BINS TO COUNT AVALANCHE SIZE, LENGTH, AND ALSO
         % INTER-EVENT INTERVAL
         %scount = 0;
@@ -167,7 +173,7 @@ end
 %title('Log-Log Distribution of Avalanche Length')
 %xlabel('Log[Avalanche Length (seconds)]')
 %ylabel('Log(Frequency)')
-cd('/Users/gardnerlab/Documents/MATLAB/')
+cd(originalDirectory)
 
 end
 
@@ -348,3 +354,4 @@ end
 
 
 end
+
