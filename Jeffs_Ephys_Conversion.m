@@ -96,7 +96,7 @@ for bird = 1:length(cellArrayBirdNames)
                         leftovers(kk,jj+1) = mod(currentLength-1,downSampleRate);
                         squareData(count,index:index+newLength-1,1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
                         newData = myData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); %downsample
-                        n = downSampleRate/2; %filter
+                        n = round(downSampleRate/2); %filter
                         lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
                         blo = fir1(n,lowpass,'low',hamming(n+1));
                         newData = filter(blo,1,newData);
@@ -129,7 +129,7 @@ for bird = 1:length(cellArrayBirdNames)
                 temp = squeeze(Data(:,2));
                 temp = smooth(temp.^2,downSampleRate);
                 newTemp = temp(1:downSampleRate:end);
-                n = downSampleRate/2;
+                n = round(downSampleRate/2);
                 lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
                 blo = fir1(n,lowpass,'low',hamming(n+1));
                 newTemp = filter(blo,1,newTemp);
@@ -138,14 +138,23 @@ for bird = 1:length(cellArrayBirdNames)
                 clear Data;
             end
         end
-
+     numCombos = size(squareData,1);
      startTime = parameters.rec_start_datenum;
      dataPoints = size(squareData,2);
      squareData(:,:,2) = squeeze(squareData(:,:,2))-mean(squeeze(squareData(:,:,2)),2)*ones(1,dataPoints);
      
+     spikeData = zeros(numCombos,dataPoints,2);
+     for zz =1:numCombos
+         test = squeeze(squareData(zz,:,2));
+         thresh = std(test);
+         test(test<thresh) = 0;
+         test(test>0) = 1;
+         spikeData(zz,:,2) = test;
+         spikeData(zz,:,1) = squeeze(squareData(zz,:,1));
+     end
      filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
-     save(filename,'squareData','Fs','fileNames','startTime')
+     save(filename,'squareData','spikeData','Fs','fileNames','startTime')
         
     end
 clearvars -except originalDirectory resultDirectory cellArrayBirdNames bird
