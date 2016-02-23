@@ -9,7 +9,10 @@ function [] = Jeffs_Ephys_Conversion(cellArrayBirdNames,Fs)
 %     then, you can send in input as {'lpi79','lpi16'} or something
 %     similar, whatever the bird names are, as long as all files are stored
 %     in the same format
-%        Fs - sampling frequency TO WHICH you want to downsample
+%        Fs - sampling frequency TO WHICH you want to downsample, due to
+%        the way the function downsamples, the original sampling frequency
+%        divided by the this new sampling frequency must equal a whole
+%        number, if it does not, then the value of Fs will be rounded
 % OUTPUT: no direct output, but all of the matrices will be stored in a
 %  subdirectory of the original directory as 
 %   Converted_Ephys_currentDate/combinedData_birdname_recordingDate.mat
@@ -18,7 +21,7 @@ function [] = Jeffs_Ephys_Conversion(cellArrayBirdNames,Fs)
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/15
+% Updated: 2016/02/22
 % By: Byron Price
 
 
@@ -42,7 +45,8 @@ for bird = 1:length(cellArrayBirdNames)
     numElectrodes = size(adc.names,2);
    
     FsOld = adc.fs;
-    downSampleRate = FsOld/Fs; 
+    downSampleRate = round(FsOld/Fs); 
+    Fs = FsOld/downSampleRate;
     
     clear FsOld adc audio parameters example ;
     
@@ -82,17 +86,21 @@ for bird = 1:length(cellArrayBirdNames)
                     index = 1;
                     for jj=1:numFiles
                         load(sleepFiles(jj).name,'adc','parameters')
+                        stdev = std(adc.data(:,kk));
+                        adc.data(adc.data(:,kk)>stdev*20,kk) = 0;
+                        adc.data(adc.data(:,kk)<-stdev*20,kk) = 0;
                         myData = smooth((adc.data(:,kk)-adc.data(:,ll)).^2,downSampleRate);
-                        n = 35;
-                        lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
-                        blo = fir1(n,lowpass,'low',hamming(n+1));
-                        myData = filter(blo,1,myData);
                         
                         currentLength = length(myData((1+downSampleRate-leftovers(kk,jj)):end));
                         newLength = ceil(currentLength/downSampleRate);
                         leftovers(kk,jj+1) = mod(currentLength-1,downSampleRate);
                         squareData(count,index:index+newLength-1,1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
-                        squareData(count,index:index+newLength-1,2) = myData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
+                        newData = myData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); %downsample
+                        n = downSampleRate/2; %filter
+                        lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
+                        blo = fir1(n,lowpass,'low',hamming(n+1));
+                        newData = filter(blo,1,newData);
+                        squareData(count,index:index+newLength-1,2) = newData;
                         index = index+newLength;
                     end
                     count = count+1;
@@ -105,6 +113,9 @@ for bird = 1:length(cellArrayBirdNames)
                 index = 1;
                 for jj=1:numFiles
                     load(sleepFiles(jj).name,'adc','parameters')
+                    stdev = std(adc.data(:,kk));
+                    adc.data(adc.data(:,kk)>stdev*20,kk) = 0;
+                    adc.data(adc.data(:,kk)<-stdev*20,kk) = 0;
                     currentLength = size(adc.data,1);
                     Data(index:index+currentLength-1,1) = adc.t;
                     Data(index:index+currentLength-1,2) = adc.data(:,kk);
@@ -113,22 +124,24 @@ for bird = 1:length(cellArrayBirdNames)
                 
                 %  RECTIFY, SMOOTH, LOWPASS FILTER
                 %  DOWNSAMPLE (ELECTRODES ALREADY SUBTRACTED)
+                
                 squareData(kk,:,1) = squeeze(Data(1:downSampleRate:end,1));
                 temp = squeeze(Data(:,2));
                 temp = smooth(temp.^2,downSampleRate);
-                n = 35;
+                newTemp = temp(1:downSampleRate:end);
+                n = downSampleRate/2;
                 lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
                 blo = fir1(n,lowpass,'low',hamming(n+1));
-                temp = filter(blo,1,temp);
+                newTemp = filter(blo,1,newTemp);
                 
-                squareData(kk,:,2) = temp(1:downSampleRate:end);
-                squareData(kk,:,2) = squareData(kk,:,2) - mean(squareData(kk,:,2));
+                squareData(kk,:,2) = newTemp;
                 clear Data;
             end
         end
-        
+
      startTime = parameters.rec_start_datenum;
-     
+     dataPoints = size(squareData,2);
+     squareData(:,:,2) = squeeze(squareData(:,:,2))-mean(squeeze(squareData(:,:,2)),2)*ones(1,dataPoints);
      
      filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
