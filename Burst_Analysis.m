@@ -1,15 +1,17 @@
-function [Av_Size,Av_IEI,Time] = Burst_Analysis(Av_Data,window,maxThreshold,Fs)
+function [Av_Size,Av_IEI,Time] = Burst_Analysis(P_Av_Data,window,maxThreshold,Fs)
 %Burst_Analysis.m
 %   Take "Av_Data" matrix from Ca_im_DataStream output and count 
 %    avalanches using different definitions and thresholds.
-%
 % 
-% INPUT: Av_Data - a single matrix size videos by frames
+% INPUT: P_Av_Data - cell array sized by the number of nights
+%         of data processed in the Ca_im_DataStream code and output as
+%         Processed_Data.Av_Data
 %        window - for avalanche definition (see below)
 %        maxThreshold - also for avalanche definition, the code will
-%          iterate from a threshold of 1 up to maxThreshold, where each
-%          threshold signifies the minimum number of ROIs that must be active
-%          in a single frame for an avalanche to be counted 
+%          iterate from a threshold of 0.1 up to maxThreshold, where each
+%          threshold signifies the fraction of ROIs that must be active
+%          in a single frame for an avalanche to be counted
+%          must be between 0 and 1
 %        Fs - sampling frequency
 %
 % OUTPUT: Av_Size - a matrix with count data for each of the possible
@@ -71,83 +73,92 @@ function [Av_Size,Av_IEI,Time] = Burst_Analysis(Av_Data,window,maxThreshold,Fs)
 %
 % Created: 2015/12/15 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/19
+% Updated: 2016/02/22
 %  By: Byron Price
 
-numVideos = size(Av_Data,1);
-numFrames = size(Av_Data,2);
-Time = 1/Fs:1/Fs:numFrames/Fs;
+numNights = size(P_Av_Data,2);
+numFrames = zeros(numNights,1);
+for ii=1:numNights
+    numFrames(ii) = size(P_Av_Data{ii},2);
+end
+
+maxFrames = max(numFrames);
+Time = 1/Fs:1/Fs:maxFrames/Fs;
 maxROIs = 500;   
+threshVec = 0.1:0.1:maxThreshold;
+Av_Size = zeros(length(threshVec),maxROIs); % avalanche size 
 
-Av_Size = zeros(maxThreshold,maxROIs); % avalanche size 
-
-Av_IEI = zeros(maxThreshold,length(Time)); % inter-event interval (seconds), or time 
+Av_IEI = zeros(length(threshVec),length(Time)); % inter-event interval (seconds), or time 
                 % between avalanches
 
-for threshold = 1:maxThreshold
-    Sizes = [];
-    IEIs = [];
-    for ii=1:numVideos
-        newData = Av_Data(ii,:);
-        newData(newData<threshold) = 0; % clear all activity below the threshold
-        burstsAt = find(newData); % find indeces of avalanches, indeces
-             % with the number of active ROIs above "threshold"
-         if window == 0
-             for jj=1:length(burstsAt)
-                 Av_Size(threshold,newData(burstsAt(jj))) = ...
-                     Av_Size(threshold,newData(burstsAt(jj)))+1;
-                 if jj > 1
-                     Av_IEI(threshold,burstsAt(jj)-burstsAt(jj-1)) = ...
-                         Av_IEI(threshold,burstsAt(jj)-burstsAt(jj-1))+1;
-                 end
-             end
-
-         elseif window > 0
-            extraNewData = zeros(length(newData),1);
-            for jj=1:length(burstsAt)
-                count = 0;
-                for kk=jj+1:length(burstsAt)
-                    if (burstsAt(kk)-burstsAt(kk-1)) <= window
-                        count = count+1;
-                    else
-                        break;
+for zz = 1:numNights
+    Av_Data = P_Av_Data{zz};
+    numVideos = size(Av_Data,1);
+    threshcount = 0;
+    for threshold=threshVec
+        threshcount = threshcount+1;
+        for ii=1:numVideos
+            newData = Av_Data(ii,:)./max(Av_Data(ii,:));
+            newData(newData<threshold) = 0; % clear all activity below the threshold
+            burstsAt = find(newData); % find indeces of avalanches, indeces
+            % with the number of active ROIs above "threshold"
+            if window == 0
+                for jj=1:length(burstsAt)
+                    Av_Size(threshcount,newData(burstsAt(jj))) = ...
+                        Av_Size(threshcount,newData(burstsAt(jj)))+1;
+                    if jj > 1
+                        Av_IEI(threshcount,burstsAt(jj)-burstsAt(jj-1)) = ...
+                            Av_IEI(threshcount,burstsAt(jj)-burstsAt(jj-1))+1;
                     end
                 end
-                if count == 0
-                    newcount = count;
-                    extraNewData(burstsAt(jj)) = newData(burstsAt(jj));
-                else
-                    summedActiv = sum(newData(burstsAt(jj):burstsAt(jj)+count));
-                    if mod(count,2) == 0
-                        extraNewData(burstsAt(jj)+count/2) = summedActiv;
-                        newData(burstsAt(jj)+count/2) = summedActiv;
-                        newcount = count/2;
-                    elseif mod(count,2) == 1
-                        randNum = rand;
-                        if randNum <= 0.5
-                            newcount = floor(count/2);
-                            extraNewData(burstsAt(jj)+floor(count/2)) = summedActiv;
-                            newData(burstsAt(jj)+floor(count/2)) = summedActiv;
-                        elseif randNum > 0.5
-                            newcount = ceil(count/2);
-                            extraNewData(burstsAt(jj)+ceil(count/2)) = summedActiv;
-                            newData(burstsAt(jj)+ceil(count/2)) = summedActiv;
+                
+            elseif window > 0
+                extraNewData = zeros(length(newData),1);
+                for jj=1:length(burstsAt)
+                    count = 0;
+                    for kk=jj+1:length(burstsAt)
+                        if (burstsAt(kk)-burstsAt(kk-1)) <= window
+                            count = count+1;
+                        else
+                            break;
                         end
                     end
+                    if count == 0
+                        newcount = count;
+                        extraNewData(burstsAt(jj)) = newData(burstsAt(jj));
+                    else
+                        summedActiv = sum(newData(burstsAt(jj):burstsAt(jj)+count));
+                        if mod(count,2) == 0
+                            extraNewData(burstsAt(jj)+count/2) = summedActiv;
+                            newData(burstsAt(jj)+count/2) = summedActiv;
+                            newcount = count/2;
+                        elseif mod(count,2) == 1
+                            randNum = rand;
+                            if randNum <= 0.5
+                                newcount = floor(count/2);
+                                extraNewData(burstsAt(jj)+floor(count/2)) = summedActiv;
+                                newData(burstsAt(jj)+floor(count/2)) = summedActiv;
+                            elseif randNum > 0.5
+                                newcount = ceil(count/2);
+                                extraNewData(burstsAt(jj)+ceil(count/2)) = summedActiv;
+                                newData(burstsAt(jj)+ceil(count/2)) = summedActiv;
+                            end
+                        end
+                    end
+                    newData([burstsAt(jj):(burstsAt(jj)+newcount-1),(burstsAt(jj)+newcount+1):burstsAt(jj+count)]) = 0;
                 end
-                newData([burstsAt(jj):(burstsAt(jj)+newcount-1),(burstsAt(jj)+newcount+1):burstsAt(jj+count)]) = 0;
+                clear burstsAt;
+                burstsAt = find(extraNewData);
+                for ll=1:length(burstsAt)
+                    Av_Size(threshcount,extraNewData(burstsAt(ll))) = ...
+                        Av_Size(threshcount,extraNewData(burstsAt(ll)))+1;
+                    if ll > 1
+                        Av_IEI(threshcount,burstsAt(ll)-burstsAt(ll-1)) = ...
+                            Av_IEI(threshcount,burstsAt(ll)-burstsAt(ll-1))+1;
+                    end
+                end
             end
-            clear burstsAt;
-            burstsAt = find(extraNewData);
-            for ll=1:length(burstsAt)
-                 Av_Size(threshold,extraNewData(burstsAt(ll))) = ...
-                     Av_Size(threshold,extraNewData(burstsAt(ll)))+1;
-                 if ll > 1
-                     Av_IEI(threshold,burstsAt(ll)-burstsAt(ll-1)) = ...
-                         Av_IEI(threshold,burstsAt(ll)-burstsAt(ll-1))+1;
-                 end
-             end
-         end
+        end
     end
 end
 end
