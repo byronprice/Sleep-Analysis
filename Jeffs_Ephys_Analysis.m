@@ -11,7 +11,7 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 %         data from multiple conversions.  The converted data is
 %         automatically save to a folder named 'Converted_Ephys_YYYY-MM-DD'
 %         so the code will grab those folders with the dates provided.
-%         dates = {'2016-02-16','2016-02-17'};
+%         e.g. dates = {'2016-02-16','2016-02-17'};
 %        earlyCutOff - amount of time (in hours) to exclude from the 
 %         beginning of the night, if the bird was not asleep, for example
 %        lateCutOff - amount of time (in hours) to exclude at the end of the
@@ -20,7 +20,7 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/15
+% Updated: 2016/02/22
 % By: Byron Price
 
 if nargin < 2
@@ -52,7 +52,7 @@ for ii=1:length(dates)
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
         T = 10; % data assumed stationary for T seconds, this should be an EVEN #
         N = T*Fs;
-        R = 2; % desired spectral resolution (Hz)
+        R = 1; % desired spectral resolution (Hz)
         alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
             display(sprintf('alpha is equal to %2.4f',alpha))
@@ -69,22 +69,25 @@ for ii=1:length(dates)
         figure();
         numRows = ceil(numCombos/2);
         for kk = 1:numCombos 
-            % MAKE THE MULTI-TAPER SPECTROGRAM
+            % MAKE THE MULTI-TAPER SPECTROGRAM && SLIDING INTER-EVENT INTERVAL
+            %  DISTRIBUTION
             count = 1;
             for tt=times
+                newData = Data(kk,(tt-(N/2-1)):(tt+(N/2)));
                 [pxx,f] = pmtm(Data(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
                 finalSpectrogram(kk,count,:) = (squeeze(finalSpectrogram(kk,count,:)))'+10*log10(pxx');
                 count = count+1;
             end
             x = linspace(0,finalTime/3600,length(realTimes));
             
-            subplot(numRows,2,kk)
+            subplot(numRows,2,1+(kk-1)*2)
             spectro = squeeze(finalSpectrogram(kk,:,:));
             imagesc(x,f,spectro');colorbar;title( ... 
                 sprintf('Multi-taper Spectrogram for Electrode Combo #%i',kk));
                 xlabel('Time (hours)');ylabel('Frequency (Hz)') 
             h = gca;
             h.YDir = 'normal';
+            subplot(numRows,2,2+(kk-1)*2)
         end
         
         clear spectro;
