@@ -20,13 +20,15 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/15
+% Updated: 2016/02/23
 % By: Byron Price
 
 if nargin < 2
-    earlyCutOff = 1*3600; % 1 hour chopped from the beginning and end of the night
-    lateCutOff = 1*3600;
+    earlyCutOff = 1; % 1 hour chopped from the beginning and end of the night
+    lateCutOff = 1;
 end
+earlyCutOff = earlyCutOff*3600;
+lateCutOff = lateCutOff*3600;
 
 originalDirectory = pwd;
 for ii=1:length(dates)
@@ -40,19 +42,24 @@ for ii=1:length(dates)
     for jj=1:numFiles
         load(matrixNames(jj).name)
         numCombos = size(squareData,1);
-        Data = squeeze(squareData(:,earlyCutOff:end-lateCutOff,2));
-        timeSteps = size(Data,2);
+        tData = squeeze(squareData(:,earlyCutOff:end-lateCutOff,2));
+        sData = squeeze(spikeData(:,earlyCutOff:end-lateCutOff,2));
+        timeSteps = size(tData,2);
         
         if mod(timeSteps,2) == 1
-            Data = Data(:,1:end-1);
+            tData = tData(:,1:end-1);
+            sData = sData(:,1:end-1);
             timeSteps = timeSteps-1;
         end
         
         % IMPORTANT STEP FOR CREATION OF SPECTROGRAM
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
         T = 10; % data assumed stationary for T seconds, this should be an EVEN #
-        N = T*Fs;
-        R = 2; % desired spectral resolution (Hz)
+        N = round(T*Fs);
+        if mod(N,2) == 1
+            N = N+1;
+        end
+        R = 1; % desired spectral resolution (Hz)
         alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
             display(sprintf('alpha is equal to %2.4f',alpha))
@@ -65,34 +72,60 @@ for ii=1:length(dates)
         realTimes = times./Fs;
         finalTime = realTimes(end);
         finalSpectrogram = zeros(numCombos,length(times),N/2+1);
+        IEIspectrogram = zeros(numCombos,length(times),N);
+        ieis = (1:N)./Fs;
+        x = linspace(0,finalTime/3600,length(realTimes));
+        
         figure();
-        numRows = ceil(numCombos/2);
+        plotcount = 1;
         for kk = 1:numCombos 
-            % MAKE THE MULTI-TAPER SPECTROGRAM
+            % MAKE THE MULTI-TAPER SPECTROGRAM && IEI Spectrogram
             count = 1;
             for tt=times
-                [pxx,f] = pmtm(Data(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
+                burstsAt = find(squeeze(sData(kk,(tt-(N/2-1)):(tt+(N/2)))));
+                for zz=1:length(burstsAt)
+                    if zz > 1
+                        IEIspectrogram(kk,count,burstsAt(zz)-burstsAt(zz-1)) = ...
+                            IEIspectrogram(kk,count,burstsAt(zz)-burstsAt(zz-1))+1;
+                    end
+                end
+                [pxx,f] = pmtm(tData(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
                 finalSpectrogram(kk,count,:) = (squeeze(finalSpectrogram(kk,count,:)))'+10*log10(pxx');
                 count = count+1;
             end
-            x = linspace(0,finalTime/3600,length(realTimes));
             
-            subplot(numRows,2,kk)
-            spectro = squeeze(finalSpectrogram(kk,:,:));
-            imagesc(x,f,spectro');colorbar;title( ... 
+            subplot(numRows,2,plotcount)
+            plotcount = plotcount+1;
+            fspectro = squeeze(finalSpectrogram(kk,:,:));
+            imagesc(x,f,fspectro');
+            hh = colorbar;
+            ylabel(hh,'Power');
+            title( ... 
                 sprintf('Multi-taper Spectrogram for Electrode Combo #%i',kk));
                 xlabel('Time (hours)');ylabel('Frequency (Hz)') 
             h = gca;
             h.YDir = 'normal';
+            
+            subplot(numRows,2,plotcount)
+            ieispectro = squeeze(IEIspectrogram(kk,:,:));
+            imagesc(x,ieis,ieispectro')
+            hh = colorbar;
+            ylabel(hh,'Log Count')
+            title( ... 
+                sprintf('Inter-Event Interval Distribution for Electrode Combo #%i',kk));
+                xlabel('Time (hours)');ylabel('Inter-Event Interval (seconds)') 
+            h = gca;
+            h.YDir = 'normal';
+            plotcount = plotcount+1;
         end
         
-        clear spectro;
+        clear fspectro ieispectro;
         % MULTIVARIATE GAUSSIAN MAXIMUM LIKELIHOOD ESTIMATION - FREQUENCY
 %         timeSteps = size(finalSpectrogram,1);
 %         numFreqs = size(finalSpectrogram,2);
-        spectro = squeeze(finalSpectrogram(1,:,:));
-        x_hat = (mean(spectro,1))';
-        sigma_hat = cov(spectro);
+        fspectro = squeeze(finalSpectrogram(1,:,:));
+        x_hat = (mean(fspectro,1))';
+        sigma_hat = cov(fspectro);
         figure();
         subplot(1,2,1)
         plot(f,x_hat);title('Mean Power as a Function of Frequency');
@@ -102,8 +135,8 @@ for ii=1:length(dates)
         xlabel('Frequency (Hz)');ylabel('Frequency (Hz)');colorbar
         
         % MULTIVARIATE GAUSSIAN - TIME
-        x_hat = mean(spectro,2);
-        sigma_hat = cov(spectro');
+        x_hat = mean(fspectro,2);
+        sigma_hat = cov(fspectro');
         figure();
         subplot(1,2,1)
         plot(x,x_hat);title('Mean Power as a Function of Time');
