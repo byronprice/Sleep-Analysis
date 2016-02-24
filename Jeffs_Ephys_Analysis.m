@@ -27,10 +27,8 @@ if nargin < 2
     earlyCutOff = 0.5; % 1 hour chopped from the beginning and end of the night
     lateCutOff = 1;
 end
-
 earlyCutOff = round(earlyCutOff*3600);
 lateCutOff = round(lateCutOff*3600);
-
 
 originalDirectory = pwd;
 for ii=1:length(dates)
@@ -43,27 +41,25 @@ for ii=1:length(dates)
     clear Fs;
     for jj=1:numFiles
         load(matrixNames(jj).name)
-        numCombos = size(squareData,1);
-        tData = squeeze(squareData(:,earlyCutOff:end-lateCutOff,2));
-        sData = squeeze(spikeData(:,earlyCutOff:end-lateCutOff,2));
-        timeSteps = size(tData,2);
+        numCombos = size(originalData,1);
+        oData = squeeze(originalData(:,earlyCutOff:end-lateCutOff));
+        sData = squeeze(spikeData(:,earlyCutOff:end-lateCutOff));
+        timeSteps = size(TimeVec,2);
         
         if mod(timeSteps,2) == 1
-            tData = tData(:,1:end-1);
+            oData = oData(:,1:end-1);
             sData = sData(:,1:end-1);
             timeSteps = timeSteps-1;
         end
         
         % IMPORTANT STEP FOR CREATION OF SPECTROGRAM
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
-
-        T = 30; % data assumed stationary for T seconds, this should be an EVEN #
+        T = 10; % data assumed stationary for T seconds, this should be an EVEN #
         N = round(T*Fs);
         if mod(N,2) == 1
             N = N+1;
         end
-
-        R = 0.5; % desired spectral resolution (Hz)
+        R = 1; % desired spectral resolution (Hz)
         alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
             display(sprintf('alpha is equal to %2.4f',alpha))
@@ -75,7 +71,6 @@ for ii=1:length(dates)
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
         finalTime = realTimes(end);
-
         frequencySpectrogram = zeros(numCombos,length(times),N/2+1);
         IEIspectrogram = zeros(numCombos,length(times),N);
         ieis = (1:N)./Fs;
@@ -94,7 +89,7 @@ for ii=1:length(dates)
                             IEIspectrogram(kk,count,burstsAt(zz)-burstsAt(zz-1))+1;
                     end
                 end
-                [pxx,f] = pmtm(tData(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
+                [pxx,f] = pmtm(oData(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
                 frequencySpectrogram(kk,count,:) = (squeeze(frequencySpectrogram(kk,count,:)))'+10*log10(pxx');
                 count = count+1;
             end
@@ -157,7 +152,7 @@ for ii=1:length(dates)
         plot(ieis,x_hat);title('Mean Log Count as a Function of Inter-Event Interval');
         xlabel('Inter-Event Interval (seconds)');ylabel('Log Count')
         subplot(1,2,2)
-        imagesc(ieis,ieis,sigma_hat);title('Inter-Event Interval Covariance Matrix \Sigma_IEI');
+        imagesc(ieis,ieis,sigma_hat);title('Inter-Event Interval Covariance Matrix \Sigma_i');
         xlabel('IEI (seconds)');ylabel('IEI (seconds)');colorbar
         
         % MULTIVARIATE GAUSSIAN - TIME
@@ -166,7 +161,7 @@ for ii=1:length(dates)
         figure();
         subplot(1,2,1)
         plot(x,x_hat);title('Mean Log Count as a Function of Time');
-        xlabel('Time (hours)');ylabel('Power (dB/Hz)')
+        xlabel('Time (hours)');ylabel('Log Count')
         subplot(1,2,2)
         imagesc(x,x,sigma_hat);title('Time Covariance Matrix \Sigma_t');
         xlabel('Time (hours)');ylabel('Time (hours)');colorbar

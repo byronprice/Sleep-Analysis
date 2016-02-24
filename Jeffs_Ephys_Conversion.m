@@ -76,9 +76,11 @@ for bird = 1:length(cellArrayBirdNames)
         if ContainSubString(adc.names{1},'Gnd') == 1
             % SUBTRACT ELECTRODES FROM EACH OTHER, RECTIFY,
             %  SMOOTH, LOWPASS FILTER, DOWNSAMPLE
-            squareData = zeros(numCombos,timeSteps,2);
-            leftovers = zeros(numElectrodes,numFiles+1);
-            leftovers(:,1) = downSampleRate*ones(numElectrodes,1);
+            TimeVec = zeros(numCombos,timeSteps);
+            originalData = zeros(numCombos,timeSteps);
+            squareData = zeros(numCombos,timeSteps);
+            leftovers = zeros(numCombos,numFiles+1);
+            leftovers(:,1) = downSampleRate*ones(numCombos,1);
             
             count = 1;
             for kk=1:numElectrodes
@@ -87,35 +89,46 @@ for bird = 1:length(cellArrayBirdNames)
                     for jj=1:numFiles
                         load(sleepFiles(jj).name,'adc','parameters')
                         stdev = std(adc.data(:,kk));
-                        adc.data(adc.data(:,kk)>stdev*20,kk) = 0;
-                        adc.data(adc.data(:,kk)<-stdev*20,kk) = 0;
-                        myData = smooth((adc.data(:,kk)-adc.data(:,ll)).^2,downSampleRate);
+                        adc.data(adc.data(:,kk)>stdev*15,kk) = 0;
+                        adc.data(adc.data(:,kk)<-stdev*15,kk) = 0;
+                        smoothData = smooth((adc.data(:,kk)-adc.data(:,ll)).^2,downSampleRate);
+                        unsmoothData = adc.data(:,kk)-adc.data(:,ll);
                         
-                        currentLength = length(myData((1+downSampleRate-leftovers(kk,jj)):end));
+                        currentLength = length(smoothData((1+downSampleRate-leftovers(kk,jj)):end));
                         newLength = ceil(currentLength/downSampleRate);
                         leftovers(kk,jj+1) = mod(currentLength-1,downSampleRate);
-                        squareData(count,index:index+newLength-1,1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
-                        newData = myData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); %downsample
-                        n = 30; %filter
+                        
+                        % DOWNSAMPLE
+                        TimeVec(count,index:index+newLength-1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
+                        unsmoothData = unsmoothData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
+                        newData = smoothData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); 
+                        
+                        % FILTER
+                        n = 30; 
                         lowpass = 0.99; % fraction of Nyquist frequency
                         blo = fir1(n,lowpass,'low',hamming(n+1));
                         newData = filter(blo,1,newData);
-                        squareData(count,index:index+newLength-1,2) = newData;
+                        squareData(count,index:index+newLength-1) = newData;
+                        
+                        unsmoothData = filter(blo,1,unsmoothData);
+                        originalData(count,index:index+newLength-1) = unsmoothData;
                         index = index+newLength;
                     end
                     count = count+1;
                 end
             end  
         else
-            squareData = zeros(numElectrodes,timeSteps,2);
+            TimeVec = zeros(numElectrodes,timeSteps);
+            originalData = zeros(numElectrodes,timeSteps);
+            squareData = zeros(numElectrodes,timeSteps);
             for kk=1:numElectrodes
                 Data = zeros(totalLength,2);
                 index = 1;
                 for jj=1:numFiles
                     load(sleepFiles(jj).name,'adc','parameters')
                     stdev = std(adc.data(:,kk));
-                    adc.data(adc.data(:,kk)>stdev*20,kk) = 0;
-                    adc.data(adc.data(:,kk)<-stdev*20,kk) = 0;
+                    adc.data(adc.data(:,kk)>stdev*15,kk) = 0;
+                    adc.data(adc.data(:,kk)<-stdev*15,kk) = 0;
                     currentLength = size(adc.data,1);
                     Data(index:index+currentLength-1,1) = adc.t;
                     Data(index:index+currentLength-1,2) = adc.data(:,kk);
@@ -125,7 +138,7 @@ for bird = 1:length(cellArrayBirdNames)
                 %  RECTIFY, SMOOTH, LOWPASS FILTER
                 %  DOWNSAMPLE (ELECTRODES ALREADY SUBTRACTED)
                 
-                squareData(kk,:,1) = squeeze(Data(1:downSampleRate:end,1));
+                TimeVec(kk,:) = squeeze(Data(1:downSampleRate:end,1));
                 temp = squeeze(Data(:,2));
                 temp = smooth(temp.^2,downSampleRate);
                 newTemp = temp(1:downSampleRate:end);
@@ -133,8 +146,12 @@ for bird = 1:length(cellArrayBirdNames)
                 lowpass = 0.99; % fraction of Nyquist frequency (FsOld/2)
                 blo = fir1(n,lowpass,'low',hamming(n+1));
                 newTemp = filter(blo,1,newTemp);
+                squareData(kk,:) = newTemp;
                 
-                squareData(kk,:,2) = newTemp;
+                temp = squeeze(Data(:,2));
+                newTemp = temp(1:downSampleRate:end);
+                newTemp = filter(blo,1,newTemp);
+                originalData(kk,:) = newTemp;
                 clear Data;
             end
         end
@@ -142,18 +159,17 @@ for bird = 1:length(cellArrayBirdNames)
      startTime = parameters.rec_start_datenum;
      dataPoints = size(squareData,2);
      
-     spikeData = zeros(numCombos,dataPoints,2);
+     spikeData = zeros(numCombos,dataPoints);
      for zz =1:numCombos
-         test = squeeze(squareData(zz,:,2));
+         test = squeeze(squareData(zz,:));
          thresh = std(test);
          test(test<thresh) = 0;
          test(test>0) = 1;
          spikeData(zz,:,2) = test;
-         spikeData(zz,:,1) = squeeze(squareData(zz,:,1));
      end
      filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
-     save(filename,'squareData','spikeData','Fs','fileNames','startTime')
+     save(filename,'originalData','squareData','spikeData','TimeVec','Fs','fileNames','startTime')
         
     end
 clearvars -except originalDirectory resultDirectory cellArrayBirdNames bird
