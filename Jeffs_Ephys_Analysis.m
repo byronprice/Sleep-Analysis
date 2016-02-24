@@ -36,16 +36,20 @@ for ii=1:length(dates)
     matrixNames = dir('*.mat');
     numFiles = length(matrixNames);
     load(matrixNames(1).name,'Fs')
-    earlyCutOff = earlyCutOff*round(Fs);
+    earlyCutOff = earlyCutOff*round(Fs); % rounded because its called below 
+                     % as an index
     lateCutOff = lateCutOff*round(Fs);
     clear Fs;
     for jj=1:numFiles
         load(matrixNames(jj).name)
         numCombos = size(originalData,1);
         oData = squeeze(originalData(:,earlyCutOff:end-lateCutOff));
-        sData = squeeze(spikeData(:,earlyCutOff:end-lateCutOff));
-        timeSteps = size(TimeVec,2);
+             % oData will be the lowpass filtered raw data
+        sData = squeeze(spikeData(:,earlyCutOff:end-lateCutOff)); 
+             % sData has been converted to a point process
+        timeSteps = size(sData,2);
         
+        % easier if everything is even
         if mod(timeSteps,2) == 1
             oData = oData(:,1:end-1);
             sData = sData(:,1:end-1);
@@ -68,20 +72,21 @@ for ii=1:length(dates)
             return;
         end
         K = N/2;
-        times = N/2:K:timeSteps-N/2;
-        realTimes = times./Fs;
-        finalTime = realTimes(end);
-        frequencySpectrogram = zeros(numCombos,length(times),N/2+1);
-        IEIspectrogram = zeros(numCombos,length(times),N);
+        loopIndeces= N/2:K:timeSteps-N/2;
+        realTimes = loopIndeces./Fs;
+
+        frequencySpectrogram = zeros(numCombos,length(loopIndeces),N/2+1);
+        IEIspectrogram = zeros(numCombos,length(loopIndeces),N);
         ieis = (1:N)./Fs;
-        x = linspace(0,finalTime/3600,length(realTimes));
+        xf = linspace(0,realTimes(end)/3600,length(realTimes));
+        xiei = xf;
         
         figure();
         plotcount = 1;
         for kk = 1:numCombos 
             % MAKE THE MULTI-TAPER SPECTROGRAM && IEI Spectrogram
             count = 1;
-            for tt=times
+            for tt=loopIndeces
                 burstsAt = find(squeeze(sData(kk,(tt-(N/2-1)):(tt+(N/2)))));
                 for zz=1:length(burstsAt)
                     if zz > 1
@@ -97,7 +102,7 @@ for ii=1:length(dates)
             subplot(numCombos,2,plotcount)
             plotcount = plotcount+1;
             fspectro = squeeze(frequencySpectrogram(kk,:,:));
-            imagesc(x,f,fspectro');
+            imagesc(xf,f,fspectro');
             hh = colorbar;
             ylabel(hh,'Power (dB/Hz)');
             title( ... 
@@ -108,7 +113,7 @@ for ii=1:length(dates)
             
             subplot(numCombos,2,plotcount)
             ieispectro = squeeze(IEIspectrogram(kk,:,:));
-            imagesc(x,ieis,ieispectro')
+            imagesc(xiei,ieis,ieispectro')
             hh = colorbar;
             ylabel(hh,'Log Count')
             title( ... 
@@ -137,10 +142,10 @@ for ii=1:length(dates)
         sigma_hat = cov(fspectro');
         figure();
         subplot(1,2,1)
-        plot(x,x_hat);title('Mean Power as a Function of Time');
+        plot(xf,x_hat);title('Mean Power as a Function of Time');
         xlabel('Time (hours)');ylabel('Power (dB/Hz)')
         subplot(1,2,2)
-        imagesc(x,x,sigma_hat);title('Time Covariance Matrix \Sigma_t');
+        imagesc(xf,xf,sigma_hat);title('Time Covariance Matrix \Sigma_t');
         xlabel('Time (hours)');ylabel('Time (hours)');colorbar
         
         % MULTIVARIATE GAUSSIAN MAXIMUM LIKELIHOOD ESTIMATION - FREQUENCY
@@ -160,10 +165,10 @@ for ii=1:length(dates)
         sigma_hat = cov(ieispectro');
         figure();
         subplot(1,2,1)
-        plot(x,x_hat);title('Mean Log Count as a Function of Time');
+        plot(xiei,x_hat);title('Mean Log Count as a Function of Time');
         xlabel('Time (hours)');ylabel('Log Count')
         subplot(1,2,2)
-        imagesc(x,x,sigma_hat);title('Time Covariance Matrix \Sigma_t');
+        imagesc(xiei,xiei,sigma_hat);title('Time Covariance Matrix \Sigma_t');
         xlabel('Time (hours)');ylabel('Time (hours)');colorbar
         clear fspectro x_hat sigma_hat Data squareData spikeData ieispectro;
     end

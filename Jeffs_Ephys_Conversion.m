@@ -162,10 +162,11 @@ for bird = 1:length(cellArrayBirdNames)
      spikeData = zeros(numCombos,dataPoints);
      for zz =1:numCombos
          test = squeeze(squareData(zz,:));
+         test = test-mean(test);
          thresh = std(test);
          test(test<thresh) = 0;
          test(test>0) = 1;
-         spikeData(zz,:,2) = test;
+         spikeData(zz,:) = test;
      end
      filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
