@@ -24,11 +24,13 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 % By: Byron Price
 
 if nargin < 2
-    earlyCutOff = 1; % 1 hour chopped from the beginning and end of the night
+    earlyCutOff = 0.5; % 1 hour chopped from the beginning and end of the night
     lateCutOff = 1;
 end
+
 earlyCutOff = round(earlyCutOff*3600);
 lateCutOff = round(lateCutOff*3600);
+
 
 originalDirectory = pwd;
 for ii=1:length(dates)
@@ -54,11 +56,13 @@ for ii=1:length(dates)
         
         % IMPORTANT STEP FOR CREATION OF SPECTROGRAM
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
+
         T = 30; % data assumed stationary for T seconds, this should be an EVEN #
         N = round(T*Fs);
         if mod(N,2) == 1
             N = N+1;
         end
+
         R = 0.5; % desired spectral resolution (Hz)
         alpha = (T*R)/2; % must be greater than 1.25
         if alpha <= 1.25
@@ -71,6 +75,7 @@ for ii=1:length(dates)
         times = N/2:K:timeSteps-N/2;
         realTimes = times./Fs;
         finalTime = realTimes(end);
+
         frequencySpectrogram = zeros(numCombos,length(times),N/2+1);
         IEIspectrogram = zeros(numCombos,length(times),N);
         ieis = (1:N)./Fs;
