@@ -90,8 +90,11 @@ for ii=1:length(dates)
                 burstsAt = find(squeeze(sData(kk,(tt-(N/2-1)):(tt+(N/2)))));
                 for zz=1:length(burstsAt)
                     if zz > 1
-                        IEIspectrogram(kk,count,burstsAt(zz)-burstsAt(zz-1)) = ...
-                            IEIspectrogram(kk,count,burstsAt(zz)-burstsAt(zz-1))+1;
+                        iei = burstsAt(zz)-burstsAt(zz-1);
+                        if iei > 1
+                            IEIspectrogram(kk,count,iei) = ...
+                                IEIspectrogram(kk,count,iei)+1;
+                        end
                     end
                 end
                 [pxx,f] = pmtm(oData(kk,(tt-(N/2-1)):(tt+(N/2))),alpha,N,Fs);
