@@ -37,7 +37,7 @@ function [B,Pvals,BurstRate,threshVec] = AR_Process(P_Av_Data,Fs,maxThreshold)
 %
 %Created: 2016/02/19 at 24 Cummington, Boston
 %   Byron Price
-%Updated: 2016/02/22
+%Updated: 2016/03/04
 %  By: Byron Price
 threshVec = 0.1:0.1:maxThreshold;
 timeLag = 2;
@@ -53,7 +53,7 @@ for ii=1:numNights
     if numFrames(ii) > numLags
         totalLength = totalLength + numVideos(ii)*(numFrames(ii)-numLags);
     else
-        display('Must increase the variable timeLag')
+        display('Must decrease the variable timeLag')
         return;
     end
 end
