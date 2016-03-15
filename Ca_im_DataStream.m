@@ -4,7 +4,7 @@ function [Processed_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,bin
 %    Folders are named 'mat*' with '*' denoting different numbers
 % Created: 2015/10/21 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2015/02/22
+% Updated: 2015/03/15
 % By: Byron Price
 %
 % INPUT:   foldernums - cell array with strings for which folders to upload
@@ -182,7 +182,7 @@ function [numBins,Spikes] = Spike_Detector(timeSeries,sampleFreq,binSize,thresho
 %   Detect calcium spikes in imaging data for a single ROI.
 % Created: 2015/09/30 at 24 Cummington, Boston
 %  Byron Price
-% Updated: 2015/12/2
+% Updated: 2016/03/15
 %  By: Byron Price
 %
 % REFERENCE: Klaus, Plenz 2011 Statistical Analyses Support Power Law ...
