@@ -20,12 +20,12 @@ function [] = Jeffs_Ephys_Analysis(dates,earlyCutOff,lateCutOff)
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/23
+% Updated: 2016/03/15
 % By: Byron Price
 
 if nargin < 2
-    earlyCutOff = 0.5; % 1 hour chopped from the beginning and end of the night
-    lateCutOff = 1;
+    earlyCutOff = 0.5; % 1/2 hour chopped from the beginning of the night
+    lateCutOff = 1; % 1 hour from the end
 end
 earlyCutOff = round(earlyCutOff*3600);
 lateCutOff = round(lateCutOff*3600);
@@ -56,9 +56,14 @@ for ii=1:length(dates)
             timeSteps = timeSteps-1;
         end
         
+        figure();
+        [r,lags] = xcorr(sData,'coeff');
+        plot(lags/Fs,r);title('Autocorrelation Function');xlabel('Lag (seconds)');
+        ylabel('Autocorrelation');
+        
         % IMPORTANT STEP FOR CREATION OF SPECTROGRAM
         % TIME AND FREQUENCY RESOLUTION OF THE RESULT
-        T = 10; % data assumed stationary for T seconds, this should be an EVEN #
+        T = 60; % data assumed stationary for T seconds, this should be an EVEN #
         N = round(T*Fs);
         if mod(N,2) == 1
             N = N+1;
@@ -115,7 +120,7 @@ for ii=1:length(dates)
             h.YDir = 'normal';
             
             subplot(numCombos,2,plotcount)
-            ieispectro = squeeze(IEIspectrogram(kk,:,:));
+            ieispectro = log10(squeeze(IEIspectrogram(kk,:,:)));
             imagesc(xiei,ieis,ieispectro')
             hh = colorbar;
             ylabel(hh,'Log Count')

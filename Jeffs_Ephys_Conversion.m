@@ -21,7 +21,7 @@ function [] = Jeffs_Ephys_Conversion(cellArrayBirdNames,Fs)
 
 % Created: 2016/01/19 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2016/02/22
+% Updated: 2016/03/15
 % By: Byron Price
 
 
@@ -45,7 +45,7 @@ for bird = 1:length(cellArrayBirdNames)
     numElectrodes = size(adc.names,2);
    
     FsOld = adc.fs;
-    downSampleRate = round(FsOld/Fs); 
+    downSampleRate = floor(FsOld/Fs); 
     Fs = FsOld/downSampleRate;
     
     clear FsOld adc audio parameters example ;
@@ -94,23 +94,24 @@ for bird = 1:length(cellArrayBirdNames)
                         smoothData = smooth((adc.data(:,kk)-adc.data(:,ll)).^2,downSampleRate);
                         unsmoothData = adc.data(:,kk)-adc.data(:,ll);
                         
+                        % FILTER
+                        n = 30; 
+                        lowpass = 1/downSampleRate; % fraction of Nyquist frequency
+                        blo = fir1(n,lowpass,'low',hamming(n+1));
+                        smoothData = filter(blo,1,smoothData);
+                        unsmoothData = filter(blo,1,unsmoothData);
+                        
+                        % DOWNSAMPLE
                         currentLength = length(smoothData((1+downSampleRate-leftovers(kk,jj)):end));
                         newLength = ceil(currentLength/downSampleRate);
                         leftovers(kk,jj+1) = mod(currentLength-1,downSampleRate);
-                        
-                        % DOWNSAMPLE
+                                               
                         TimeVec(count,index:index+newLength-1) = adc.t((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
                         unsmoothData = unsmoothData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end);
-                        newData = smoothData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); 
+                        smoothData = smoothData((1+downSampleRate-leftovers(kk,jj)):downSampleRate:end); 
                         
-                        % FILTER
-                        n = 30; 
-                        lowpass = 0.99; % fraction of Nyquist frequency
-                        blo = fir1(n,lowpass,'low',hamming(n+1));
-                        newData = filter(blo,1,newData);
-                        squareData(count,index:index+newLength-1) = newData;
+                        squareData(count,index:index+newLength-1) = smoothData;
                         
-                        unsmoothData = filter(blo,1,unsmoothData);
                         originalData(count,index:index+newLength-1) = unsmoothData;
                         index = index+newLength;
                     end
@@ -141,16 +142,18 @@ for bird = 1:length(cellArrayBirdNames)
                 TimeVec(kk,:) = squeeze(Data(1:downSampleRate:end,1));
                 temp = squeeze(Data(:,2));
                 temp = smooth(temp.^2,downSampleRate);
-                newTemp = temp(1:downSampleRate:end);
+                
                 n = 30;
-                lowpass = 0.99; % fraction of Nyquist frequency (FsOld/2)
+                lowpass = 1/downSampleRate; % fraction of Nyquist frequency (FsOld/2)
                 blo = fir1(n,lowpass,'low',hamming(n+1));
-                newTemp = filter(blo,1,newTemp);
+                temp = filter(blo,1,temp);
+                newTemp = temp(1:downSampleRate:end);
                 squareData(kk,:) = newTemp;
                 
+                clear temp;
                 temp = squeeze(Data(:,2));
+                temp = filter(blo,1,temp);
                 newTemp = temp(1:downSampleRate:end);
-                newTemp = filter(blo,1,newTemp);
                 originalData(kk,:) = newTemp;
                 clear Data;
             end
@@ -163,10 +166,10 @@ for bird = 1:length(cellArrayBirdNames)
      for zz =1:numCombos
          test = squeeze(squareData(zz,:));
          test = test-mean(test);
-         thresh = std(test);
-         test(test<thresh) = 0;
-         test(test>0) = 1;
-         spikeData(zz,:) = test;
+         thresh = 2*std(test);
+         idx = 1:(length(signal)-1);
+         thresh_cross = test(idx)<thresh & test(idx+1)>=thresh;
+         spikeData(zz,:) = [0,thresh_cross];
      end
      filename = strcat('combinedData_',birdname,'_',subFolders(ii).name,'.mat');
      cd(strcat(originalDirectory,'/',resultDirectory))
