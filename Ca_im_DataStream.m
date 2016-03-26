@@ -4,7 +4,7 @@ function [Processed_Data] = Ca_im_DataStream(foldernums,FitType,threshold,Fs,bin
 %    Folders are named 'mat*' with '*' denoting different numbers
 % Created: 2015/10/21 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2015/03/15
+% Updated: 2015/03/25
 % By: Byron Price
 %
 % INPUT:   foldernums - cell array with strings for which folders to upload
@@ -215,7 +215,7 @@ numBins = length(times); %number of bins, based on the
                          % length of the data and bin size (secs)
 
 Spikes = zeros(numBins,1); 
-timeSeries = timeSeries;
+timeSeries = timeSeries-mean(timeSeries);
 stdActivity = std(timeSeries);
 % SPIKE DETECTION LOOP
 
@@ -259,9 +259,9 @@ x = 1:length(timeSeries);
 f = fit(x',timeSeries',FitType);
 Y = f(x);
 
-timeSeries = (timeSeries'-Y)';
+timeSeries = (timeSeries'-Y)'./Y';
 
-timeSeries = timeSeries./max(timeSeries);
+%timeSeries = timeSeries./max(timeSeries);
 
 % this last step is questionable
 
