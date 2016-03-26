@@ -261,9 +261,9 @@ Y = f(x);
 
 timeSeries = (timeSeries'-Y)';
 
-timeSeries = timeSeries./min(timeSeries);
+timeSeries = timeSeries./max(timeSeries);
 
-
+% this last step is questionable
 
 end
 
