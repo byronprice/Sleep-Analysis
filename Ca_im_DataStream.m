@@ -220,13 +220,13 @@ stdActivity = std(timeSeries);
 % SPIKE DETECTION LOOP
 
 % there are two steps to being
-% counted as a calcium spike: 1) have value above 0.2, or be at least 20% 
-% of the maximum fluorescence change; and 2) be a local maximum, meaning
+% counted as a calcium spike: 1) have z-score of at least threshold; and 
+% 2) be a local maximum, meaning
 % the fluorescence intensity of the current time step should be greater
 % than both of its neighbors
 
 for i=2:numBins-1
-        if timeSeries(i)/stdActivity > threshold % tentatively counted as spike if above threshold
+        if timeSeries(i)/stdActivity >= threshold % tentatively counted as spike if above threshold
             if timeSeries(i) > timeSeries(i-1) && timeSeries(i) > timeSeries(i+1)
                 Spikes(i) = 1;
             end
