@@ -182,7 +182,7 @@ function [numBins,Spikes] = Spike_Detector(timeSeries,sampleFreq,binSize,thresho
 %   Detect calcium spikes in imaging data for a single ROI.
 % Created: 2015/09/30 at 24 Cummington, Boston
 %  Byron Price
-% Updated: 2016/03/15
+% Updated: 2016/03/25
 %  By: Byron Price
 %
 % REFERENCE: Klaus, Plenz 2011 Statistical Analyses Support Power Law ...
@@ -215,11 +215,11 @@ numBins = length(times); %number of bins, based on the
                          % length of the data and bin size (secs)
 
 Spikes = zeros(numBins,1); 
-timeSeries = timeSeries./max(timeSeries);
+timeSeries = timeSeries;
 stdActivity = std(timeSeries);
 % SPIKE DETECTION LOOP
 
-% the trace is divided by its maximum value, there are two steps to being
+% there are two steps to being
 % counted as a calcium spike: 1) have value above 0.2, or be at least 20% 
 % of the maximum fluorescence change; and 2) be a local maximum, meaning
 % the fluorescence intensity of the current time step should be greater
@@ -239,7 +239,7 @@ function [timeSeries] = Preprocessing(timeSeries,FitType)
 %   Detrend a time series and subtract out the mean
 % Created:2015/10/21 at 24 Cummington, Boston
 %   Byron Price
-% Updated: 2015/10/21
+% Updated: 2016/03/25
 %   By: Byron Price
 % INPUT: timeSeries - calcium imaging pixel intensities over time for a
 %                       single ROI
@@ -261,7 +261,7 @@ Y = f(x);
 
 timeSeries = (timeSeries'-Y)';
 
-timeSeries = timeSeries./max(timeSeries);
+timeSeries = timeSeries./min(timeSeries);
 
 
 
