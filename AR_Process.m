@@ -11,7 +11,8 @@ function [B,Pvals,BurstRate,threshVec] = AR_Process(P_Av_Data,Fs,maxThreshold)
 %  present given a burst lag-1 bins ago.  So, the value of b(2) gives the 
 %  log odds of firing a burst given a burst 1 time step ago and no bursts 
 %  at any other time
-%  
+% See Pillow et al. Nature 2008
+% See also Gerhard et al. PLoS Comp Bio 2013
 %INPUT: P_Av_Data - output of the Ca_im_DataStream code, i.e.
 %        Processed_Data.Av_Data
 %        This code assumes that, for a given night, the same number of 
@@ -39,9 +40,33 @@ function [B,Pvals,BurstRate,threshVec] = AR_Process(P_Av_Data,Fs,maxThreshold)
 %   Byron Price
 %Updated: 2016/03/04
 %  By: Byron Price
+
 threshVec = 0.1:0.1:maxThreshold;
-timeLag = 2;
-numLags = round(timeLag*Fs);
+%timeLag = 2;
+%numLags = round(timeLag*Fs);
+numLags = 600;
+timeLag = numLags/Fs;
+
+a =15;c=65;
+phiVec = 20*pi:pi/2:31.5*pi;
+numBases = length(phiVec);
+BASIS = zeros(numLags,numBases);
+count = 1;
+t = 1:numLags;
+for phi = phiVec
+    for tt=1:numLags
+        if a*log(t(tt)+c) > (phi-pi) && a*log(t(tt)+c) < (phi+pi)
+            BASIS(tt,count) = 0.5.*cos(a*log(t(tt)+c)-phi)+0.5;
+        else
+            BASIS(tt,count) = 0;
+        end
+    end
+%     plot(t,b)
+%     hold on;
+%     title(sprintf('phi=%d',phi));
+%     pause(0.2)
+    count = count+1;
+end
 
 numNights = size(P_Av_Data,2);
 numVideos = zeros(numNights,1);
@@ -60,12 +85,12 @@ end
 clear numVideos numFrames;
 
 Time = linspace(1/Fs,timeLag,numLags);
-B = zeros(length(threshVec),numLags+1);
-Pvals = zeros(length(threshVec),numLags+1);
+B = zeros(length(threshVec),numBases+1);
+Pvals = zeros(length(threshVec),numBases+1);
 threshcount = 1;
 for threshold=threshVec
     Y = zeros(totalLength,1);
-    X = zeros(totalLength,numLags);
+    HIST = zeros(totalLength,numLags);
     count = 1;
     for zz=1:numNights
         Av_Data = P_Av_Data{zz};
@@ -76,26 +101,27 @@ for threshold=threshVec
             newData(newData<threshold) = 0; % clear all activity below the threshold
             newData(newData>0) = 1;
             if count == 1
-                left = 1;
+                top = 1;
             else
-                left = right+1;
+                top = bottom+1;
             end
-            right = left+length(newData((numLags+1):end))-1;
-            Y(left:right,1) = newData((numLags+1):end);
+            bottom = top+length(newData((numLags+1):end))-1;
+            Y(top:bottom,1) = newData((numLags+1):end);
             for kk=1:numLags
-                X(left:right,kk) = newData((numLags-(kk-1)):(numFrames-kk));
+                HIST(top:bottom,kk) = newData((numLags-(kk-1)):(numFrames-kk));
             end
             count = count+1;
             clear newData;
         end
     end
-
-    [b,dev,stats] = glmfit(X,Y,'poisson');
-    B(threshcount,:) = b;
+    X = HIST*BASIS;
+    [b,~,stats] = glmfit(X,Y,'poisson');
+    B(threshcount,:) = b';
     Pvals(threshcount,:) = stats.p;
     threshcount = threshcount+1;
 end
-figure();imagesc(Time,threshVec,B(:,2:end));xlabel('Time Lag (seconds)');ylabel('Threshold');
+figure();plot(1:numLags,BASIS*(B(2,2:end)'))
+figure();imagesc(Time,threshVec,(BASIS*(B(:,2:end)'))');xlabel('Time Lag (seconds)');ylabel('Threshold');
 %figure();plot(Time,B(1,2:end));figure();plot(Time,B(end,2:end));
 BurstRate = exp(B(:,1)).*Fs;
 figure();plot(threshVec,BurstRate);ylabel('Baseline Burst Rate (Hz)');
