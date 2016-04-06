@@ -38,10 +38,10 @@ function [B,Pvals,BurstRate,threshVec] = AR_Process(P_Av_Data,Fs,maxThreshold)
 %
 %Created: 2016/02/19 at 24 Cummington, Boston
 %   Byron Price
-%Updated: 2016/03/04
+%Updated: 2016/04/06
 %  By: Byron Price
 
-threshVec = 0.1:0.1:maxThreshold;
+threshVec = 0:0.1:maxThreshold;
 %timeLag = 2;
 %numLags = round(timeLag*Fs);
 numLags = 600;
@@ -120,11 +120,16 @@ for threshold=threshVec
     Pvals(threshcount,:) = stats.p;
     threshcount = threshcount+1;
 end
-figure();plot(1:numLags,BASIS*(B(2,2:end)'))
+figure();plot(Time,BASIS*(B(1,2:end)'));xlabel('Time Lag (seconds)');ylabel('Probability of Bursting');
+title('Probability a burst will occur time-lag seconds after a previous burst (Threshold for Bursting of 1 ROI');
+figure();plot(1:numBases,Pvals(1,2:end));xlabel('Parameter');ylabel('P-value');
+title('P-values for each of the model parameters');
 figure();imagesc(Time,threshVec,(BASIS*(B(:,2:end)'))');xlabel('Time Lag (seconds)');ylabel('Threshold');
+title('Probability of bursting (all thresholds)');
 %figure();plot(Time,B(1,2:end));figure();plot(Time,B(end,2:end));
 BurstRate = exp(B(:,1)).*Fs;
 figure();plot(threshVec,BurstRate);ylabel('Baseline Burst Rate (Hz)');
-xlabel('Threshold (fraction of total ROIs active)')
+xlabel('Threshold (fraction of total ROIs active)');
+title('Burst rate as a function of burst threshold');
 end
 
